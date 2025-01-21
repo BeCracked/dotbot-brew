@@ -5,6 +5,8 @@ from typing import Mapping
 from typing import Callable
 from typing import Iterable
 from typing import Any
+from pathlib import Path
+import platform
 
 import dotbot
 
@@ -41,6 +43,15 @@ class Brew(dotbot.Plugin):
                 "force_intel": False,
             },
         }
+        # Set path prefix
+        system = platform.system()
+        if system == "Linux":
+            self._path_prefix = Path("/home/linuxbrew/.linuxbrew/")
+        elif system == "Darwin":
+            self._path_prefix = Path("/opt/homebrew/")
+        else:
+            raise ValueError("Unsupported Operating System")
+
         super().__init__(*args, **kwargs)
 
     def can_handle(self, directive: str) -> bool:
@@ -57,6 +68,7 @@ class Brew(dotbot.Plugin):
             if defaults["force_intel"]:
                 cmd = "arch --x86_64 " + cmd
 
+            self._log.info(f"Running command: {cmd}")
             return subprocess.call(
                 cmd,
                 shell=True,
@@ -84,8 +96,8 @@ class Brew(dotbot.Plugin):
 
         for pkg in packages:
             run = self._install(
-                "brew install {pkg}",
-                "test -d /usr/local/Cellar/{pkg_name} "
+                "brew install {{pkg}}",
+                f"test -d {self._path_prefix/'Cellar'}/{{pkg_name}} "
                 + "|| brew ls --versions {pkg_name}",
                 pkg,
                 defaults,
@@ -104,8 +116,8 @@ class Brew(dotbot.Plugin):
 
         for pkg in packages:
             run = self._install(
-                "brew install --cask {pkg}",
-                "test -d /usr/local/Caskroom/{pkg_name} "
+                "brew install --cask {{pkg}}",
+                f"test -d {self._path_prefix/'Caskroom'}/{{pkg_name}} "
                 + "|| brew ls --cask --versions {pkg_name}",
                 pkg,
                 defaults,
@@ -155,7 +167,7 @@ class Brew(dotbot.Plugin):
                 install_format.format(pkg=pkg), defaults
             )
             if 0 != result:
-                self._log.warning("Failed to install [{pkg}]")
+                self._log.warning(f"Failed to install [{pkg}]")
 
             return 0 == result
 
@@ -179,4 +191,4 @@ class Brew(dotbot.Plugin):
 
         link = "https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh"
         cmd = f'command -v brew >/dev/null || /bin/bash -c "$(curl -fsSL {link})"'
-        return self._install(cmd, 'command -v brew', 'brew', defaults)
+        return self._install(cmd, "command -v brew", "brew", defaults)
