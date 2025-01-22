@@ -96,7 +96,7 @@ class Brew(dotbot.Plugin):
 
         for pkg in packages:
             run = self._install(
-                "brew install {{pkg}}",
+                "brew install {pkg}",
                 f"test -d {self._path_prefix/'Cellar'}/{{pkg_name}} "
                 + "|| brew ls --versions {pkg_name}",
                 pkg,
@@ -116,7 +116,7 @@ class Brew(dotbot.Plugin):
 
         for pkg in packages:
             run = self._install(
-                "brew install --cask {{pkg}}",
+                "brew install --cask {pkg}",
                 f"test -d {self._path_prefix/'Caskroom'}/{{pkg_name}} "
                 + "|| brew ls --cask --versions {pkg_name}",
                 pkg,
