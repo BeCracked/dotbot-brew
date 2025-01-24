@@ -42,6 +42,12 @@ class Brew(dotbot.Plugin):
                 "stdout": True,
                 "force_intel": False,
             },
+            "install-brew": {
+                "stdin": True,
+                "stderr": True,
+                "stdout": True,
+                "force_intel": False,
+            },
         }
         # Set path prefix
         system = platform.system()
@@ -51,6 +57,8 @@ class Brew(dotbot.Plugin):
             self._path_prefix = Path("/opt/homebrew/")
         else:
             raise ValueError("Unsupported Operating System")
+
+        self._brew_bin = str(self._path_prefix / "bin" / "brew")
 
         super().__init__(*args, **kwargs)
 
@@ -73,9 +81,9 @@ class Brew(dotbot.Plugin):
                 cmd,
                 shell=True,
                 cwd=self._context.base_directory(),
-                stdin=devnull if defaults["stdin"] else None,
-                stdout=devnull if defaults["stdout"] else None,
-                stderr=devnull if defaults["stderr"] else None,
+                stdin=True if defaults["stdin"] else devnull,
+                stdout=True if defaults["stdout"] else devnull,
+                stderr=True if defaults["stderr"] else devnull,
             )
 
     def _tap(self, tap_list, defaults) -> bool:
@@ -83,7 +91,7 @@ class Brew(dotbot.Plugin):
 
         for tap in tap_list:
             self._log.info(f"Tapping {tap}")
-            cmd: str = f"brew tap {tap}"
+            cmd: str = f"{self._brew_bin} tap {tap}"
             cmd_result: int = self._invoke_shell_command(cmd, defaults)
             if cmd_result != 0:
                 # even if one tap fails, attempt the remaining ones
@@ -96,9 +104,9 @@ class Brew(dotbot.Plugin):
 
         for pkg in packages:
             run = self._install(
-                "brew install {pkg}",
+                f"{self._brew_bin} install {{pkg}}",
                 f"test -d {self._path_prefix/'Cellar'}/{{pkg_name}} "
-                + "|| brew ls --versions {pkg_name}",
+                + f"|| {self._brew_bin} ls --versions {{pkg_name}}",
                 pkg,
                 defaults,
             )
@@ -116,9 +124,9 @@ class Brew(dotbot.Plugin):
 
         for pkg in packages:
             run = self._install(
-                "brew install --cask {pkg}",
+                f"{self._brew_bin} install --cask {{pkg}}",
                 f"test -d {self._path_prefix/'Caskroom'}/{{pkg_name}} "
-                + "|| brew ls --cask --versions {pkg_name}",
+                + f"|| {self._brew_bin} ls --cask --versions {{pkg_name}}",
                 pkg,
                 defaults,
             )
@@ -176,7 +184,7 @@ class Brew(dotbot.Plugin):
 
         for file in brew_files:
             self._log.info(f"Installing from file {file}")
-            cmd = f"brew bundle --verbose --file={file}"
+            cmd = f"{self._brew_bin} bundle --verbose --file={file}"
 
             if 0 != self._invoke_shell_command(cmd, defaults):
                 self._log.warning(f"Failed to install file [{file}]")
@@ -190,5 +198,5 @@ class Brew(dotbot.Plugin):
             return False
 
         link = "https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh"
-        cmd = f'command -v brew >/dev/null || /bin/bash -c "$(curl -fsSL {link})"'
-        return self._install(cmd, "command -v brew", "brew", defaults)
+        cmd = f'command -v {self._brew_bin} >/dev/null || /bin/bash -c "$(curl -fsSL {link})"'
+        return self._install(cmd, f"command -v {self._brew_bin}", "brew", defaults)
